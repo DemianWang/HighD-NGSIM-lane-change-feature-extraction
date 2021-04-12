@@ -1326,10 +1326,144 @@ def get_intention_action_moment_attribute(LC_moment_global,instance,features_of_
     
     return LC_interaction
 
+def get_feature(vehicle_id,tracks,instance,static_info):
+    frame=instance[FRAME]
+    total_frame_len=len(frame)
+        
+    surrounding_vehicle_feature={}
+    surrounding_vehicle_feature[VEHICLE_ID]=vehicle_id
+    surrounding_vehicle_feature[CLASS]=np.zeros((total_frame_len,),dtype=np.uint8)
+    surrounding_vehicle_feature[S_LOCATION]=np.zeros((total_frame_len,),dtype=np.float32)
+    surrounding_vehicle_feature[D_LOCATION]=np.zeros((total_frame_len,),dtype=np.float32)
+    surrounding_vehicle_feature[S_VELOCITY]=np.zeros((total_frame_len,),dtype=np.float32)
+    surrounding_vehicle_feature[D_VELOCITY]=np.zeros((total_frame_len,),dtype=np.float32)
+    surrounding_vehicle_feature[S_ACCELERATION]=np.zeros((total_frame_len,),dtype=np.float32)
+    surrounding_vehicle_feature[D_ACCELERATION]=np.zeros((total_frame_len,),dtype=np.float32)
+    # tmp=features_of_single_LC[IS_PRECEDING_VEHICLE]
+    for i in range(total_frame_len):
+        if vehicle_id[i] == 0:
+            continue
+        global_frame=i+frame[0]
+        surrounding_instance = tracks[vehicle_id[i]-1]
+        surrounding_static = static_info[vehicle_id[i]]
+        Direction=int(surrounding_static[DRIVING_DIRECTION])
+        surrounding_vehicle_feature[CLASS][i]=1 if surrounding_static[CLASS] == "Car" else -1
+        
+        surrounding_vehicle_feature[S_LOCATION][i]=(surrounding_instance[BBOX][global_frame-surrounding_instance[FRAME][0],0]).astype(np.float32) \
+            if Direction == 2 else 400.0-(surrounding_instance[BBOX][global_frame-surrounding_instance[FRAME][0],0]+surrounding_instance[BBOX][0,2]).astype(np.float32)
+        surrounding_vehicle_feature[D_LOCATION][i]=(surrounding_instance[BBOX][global_frame-surrounding_instance[FRAME][0],1]+surrounding_instance[BBOX][0,3]/2).astype(np.float32) \
+            if Direction == 2 else 30.0-(surrounding_instance[BBOX][global_frame-surrounding_instance[FRAME][0],1]+surrounding_instance[BBOX][0,3]/2).astype(np.float32)
+        surrounding_vehicle_feature[S_VELOCITY][i]=surrounding_instance[X_VELOCITY][global_frame-surrounding_instance[FRAME][0]].astype(np.float32) \
+            if Direction == 2 else -1*surrounding_instance[X_VELOCITY][global_frame-surrounding_instance[FRAME][0]].astype(np.float32)
+        surrounding_vehicle_feature[D_VELOCITY][i]=surrounding_instance[Y_VELOCITY][global_frame-surrounding_instance[FRAME][0]].astype(np.float32) \
+            if Direction == 2 else -1*surrounding_instance[Y_VELOCITY][global_frame-surrounding_instance[FRAME][0]].astype(np.float32)
+        surrounding_vehicle_feature[S_ACCELERATION][i]=surrounding_instance[X_ACCELERATION][global_frame-surrounding_instance[FRAME][0]].astype(np.float32) \
+            if Direction == 2 else -1*surrounding_instance[X_ACCELERATION][global_frame-surrounding_instance[FRAME][0]].astype(np.float32)
+        surrounding_vehicle_feature[D_ACCELERATION][i]=surrounding_instance[Y_ACCELERATION][global_frame-surrounding_instance[FRAME][0]].astype(np.float32) \
+            if Direction == 2 else -1*surrounding_instance[Y_ACCELERATION][global_frame-surrounding_instance[FRAME][0]].astype(np.float32)        
+    
+    return surrounding_vehicle_feature    
+
 
 # MAIN_FUNCTION
+def get_value_in_dict(*vehicle_feature_dict):
+    rtn=None
+    for vdict in vehicle_feature_dict:
+        for _,items in vdict.items():
+            items=np.reshape(items, (-1,1))
+            if rtn is None:
+                rtn=items
+            else:
+                rtn=np.concatenate((rtn,items),axis=1)
+    
+    return rtn
+def extraction_trajectory_prediction_feature(tracks,static_info,meta_dict)->dict:
+    assert isinstance(tracks, list) and len(tracks) != 0
+    assert isinstance(static_info, dict) and len(tracks) == len(static_info)
+    assert isinstance(meta_dict, dict) 
+    trackslen=len(tracks)
+    finalframe=tracks[trackslen-1][FRAME][-1]-500
+    initframe=500
+    return_final=None
+    for idx, instance in enumerate(tracks):
+        if tracks[idx][FRAME][0]<initframe or tracks[idx][FRAME][-1]>finalframe:
+            continue
+        
+        frame=instance[FRAME]
+        total_frame_len=len(frame)
+        
+        ego=get_feature(np.zeros((total_frame_len,),dtype=np.uint8)+idx+1,tracks,instance,static_info)
+        pre=get_feature(instance[PRECEDING_ID],tracks,instance,static_info)
+        fol=get_feature(instance[FOLLOWING_ID], tracks, instance, static_info)
+        lftpre=get_feature(instance[LEFT_PRECEDING_ID], tracks, instance, static_info)
+        lftalo=get_feature(instance[LEFT_ALONGSIDE_ID], tracks, instance, static_info)
+        lftfol=get_feature(instance[LEFT_FOLLOWING_ID], tracks, instance, static_info)
+        rgtpre=get_feature(instance[RIGHT_PRECEDING_ID], tracks, instance, static_info)
+        rgtalo=get_feature(instance[RIGHT_ALONGSIDE_ID], tracks, instance, static_info)
+        rgtfol=get_feature(instance[RIGHT_FOLLOWING_ID], tracks, instance, static_info)        
+        lat=np.zeros((total_frame_len,),dtype=np.uint8)
+        if static_info[idx+1][NUMBER_LANE_CHANGES] == 1:
+            try:
+                return_trajectory=extraction_in(tracks,static_info,meta_dict,idx+1)
+            except:
+                print("error1")
+                continue
+            
+            if len(return_trajectory)<=0:
+                continue
+            LC_action_start_local_frame=return_trajectory[idx+1][LC_ACTION_START_LOCAL_FRAME]
+            LC_action_end_local_frame=return_trajectory[idx+1][LC_ACTION_END_LOCAL_FRAME]
+            #left =1 right=2
+            lat[LC_action_start_local_frame:LC_action_end_local_frame]=1 if return_trajectory[idx+1][LEFT_RIGHT_MANEUVER]==0 else 2         
+        elif static_info[idx+1][NUMBER_LANE_CHANGES] == 2:
+            return_trajectory=extraction_BL_in(tracks,static_info,meta_dict,idx+1)
+            if len(return_trajectory)<=0:
+                continue
+            BL_action_start_local_frame=return_trajectory[idx+1][BL_START_LOCAL_FRAME]
+            BL_action_middle_local_frame=return_trajectory[idx+1][BL_MIDDLE_LOCAL_FRAME]
+            BL_action_end_local_frame=return_trajectory[idx+1][BL_END_LOCAL_FRAME]
+            lat[BL_action_start_local_frame:BL_action_middle_local_frame]=1 if return_trajectory[idx+1][LEFT_RIGHT_MANEUVER]==0 else 2      
+            lat[BL_action_middle_local_frame:BL_action_end_local_frame]=2 if return_trajectory[idx+1][LEFT_RIGHT_MANEUVER]==0 else 1
+        elif static_info[idx+1][NUMBER_LANE_CHANGES] >= 3:
+            continue
 
-def extraction_in(tracks,static_info,meta_dict)->dict:
+        lon=np.zeros((total_frame_len,),dtype=np.uint8)
+        for i in range(total_frame_len):
+            if ego[S_ACCELERATION][i]>=0.5:
+                lo=max(i-25,0)
+                hi=min(total_frame_len,i+25)
+                lon[lo:hi]=1
+            elif ego[S_ACCELERATION][i]<=-0.5:
+                lo=max(i-25,0)
+                hi=min(total_frame_len,i+25)
+                lon[lo:hi]=2
+        
+        rtn=get_value_in_dict(ego,pre,fol,lftpre,lftalo,lftfol,rgtpre,rgtalo,rgtfol)       
+        lon=np.reshape(lon,(-1,1))
+        lat=np.reshape(lat,(-1,1))
+        frame=np.reshape(frame,(-1,1))
+        rtn=np.concatenate((rtn,lat,lon,frame),axis=1)
+        lo=0
+        hi=total_frame_len
+        for i in range(total_frame_len):
+            if lo==0 and rtn[i,2]>=50 and rtn[i,-1]%5==0:
+                lo=i
+            if hi==total_frame_len and rtn[i,2]>=300 and rtn[i,-1]%5==0:
+                hi=i
+        hi+=1
+        mask=np.zeros((total_frame_len,),dtype=bool)
+        for i in range(total_frame_len):
+            if i>=lo and i<=hi and rtn[i,-1]%5==0:
+                mask[i]=True
+        rtn=rtn[mask,:].astype(np.float32)
+        if return_final is None:
+            return_final=rtn
+        else:
+            return_final=np.vstack((return_final,rtn))
+    
+    return np.around(return_final,6)
+
+def extraction_in(tracks,static_info,meta_dict,curid)->dict:
     # Assert
     assert isinstance(tracks, list) and len(tracks) != 0
     assert isinstance(static_info, dict) and len(tracks) == len(static_info)
@@ -1341,7 +1475,11 @@ def extraction_in(tracks,static_info,meta_dict)->dict:
     generate_vehile_in_each_frame(tracks)    
     
     for idx, instance in enumerate(tracks):
-        # Preliminary judgment of LC  
+        # Preliminary judgment of LC
+        
+        if curid!=idx+1:
+            continue    
+        
         if static_info[idx+1][NUMBER_LANE_CHANGES] != 1:
             continue
         # Basic info: instance, static, meta
@@ -1478,7 +1616,7 @@ def extraction_in(tracks,static_info,meta_dict)->dict:
     
     return return_trajectory
 
-def extraction_BL_in(tracks, static_info, meta_dict)->dict:
+def extraction_BL_in(tracks, static_info, meta_dict, curid)->dict:
     # Assert
     assert isinstance(tracks, list) and len(tracks) != 0
     assert isinstance(static_info, dict) and len(tracks) == len(static_info)
@@ -1490,6 +1628,9 @@ def extraction_BL_in(tracks, static_info, meta_dict)->dict:
     generate_vehile_in_each_frame(tracks)   
     
     for idx, instance in enumerate(tracks):
+        if idx+1 != curid:
+            continue
+        
         # Preliminary judgment of borrow lane
         if static_info[idx+1][NUMBER_LANE_CHANGES] != 2:
             continue

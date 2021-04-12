@@ -10,9 +10,9 @@ import os
 import sys
 import pickle
 import argparse
-
+import pickle
 from read_origin_dataset import *
-from extract_lane_change_feature import extraction_in,generate_csv_file,generate_pickle_file,extraction_BL_in
+from extract_lane_change_feature import extraction_in,generate_csv_file,generate_pickle_file,extraction_BL_in,extraction_trajectory_prediction_feature
 
 def create_args(path,file_ID):
     parser = argparse.ArgumentParser(description="ParameterOptimizer")
@@ -57,9 +57,9 @@ def create_args(path,file_ID):
 
 if __name__ == '__main__':
     
-    Absolute_Path="/home/demian/code/datafromme/HighD"
+    Absolute_Path="/home/wqq/dataset/HighD"
     
-    for i in range(1,58): 
+    for i in range(43,58): 
         print("File {} in processing.".format(i))
         if 0<i and i<10:
             File_Id="0{}".format(i)
@@ -72,8 +72,8 @@ if __name__ == '__main__':
             LC_BL="LC"
         else:
             LC_BL="BL"
-        save_file=Absolute_Path+"/save_file/{}_vehcile_features_{}.csv".format(LC_BL,File_Id)
-        save_file_pkl=Absolute_Path+"/save_file/{}_vehcile_features_{}.pkl".format(LC_BL,File_Id)
+        save_file=Absolute_Path+"/save_file/trajpred_data_{}.csv".format(File_Id)
+        save_file_pkl=Absolute_Path+"/save_file/trajpred_data_{}.pkl".format(File_Id)
     
         print("Try to find the saved pickle file for better performance.")
         # Read the track csv and convert to useful format
@@ -104,18 +104,28 @@ if __name__ == '__main__':
         except:
             print("The video meta file is either missing or contains incorrect characters.")
             sys.exit(1)
-            
+       
+        if meta_dictionary['locationId']!=1:
+            continue
         # Extract the change lane feature    
         try:
-            if created_arguments["LC_or_BL"]:
-                features_LC=extraction_in(tracks, static_info, meta_dictionary)      
-                generate_pickle_file(features_LC,save_file_pkl) if created_arguments["csv_or_pkl"] else generate_csv_file(features_LC,save_file)## generate csv file
-            else:
-                features_BL=extraction_BL_in(tracks, static_info, meta_dictionary)
-                generate_pickle_file(features_BL,save_file_pkl) if created_arguments["csv_or_pkl"] else generate_csv_file(features_BL,save_file)## generate csv file
+            return_final=extraction_trajectory_prediction_feature(tracks, static_info, meta_dictionary)     
+            with open(save_file_pkl,'wb') as fw:
+                pickle.dump(return_final,fw)
         except:
             print("The feature extraction process meets some errors, please debug it.")
             sys.exit(1)
+        
+        # try:
+        #     if created_arguments["LC_or_BL"]:
+        #         features_LC=extraction_in(tracks, static_info, meta_dictionary)      
+        #         generate_pickle_file(features_LC,save_file_pkl) if created_arguments["csv_or_pkl"] else generate_csv_file(features_LC,save_file)## generate csv file
+        #     else:
+        #         features_BL=extraction_BL_in(tracks, static_info, meta_dictionary)
+        #         generate_pickle_file(features_BL,save_file_pkl) if created_arguments["csv_or_pkl"] else generate_csv_file(features_BL,save_file)## generate csv file
+        # except:
+        #     print("The feature extraction process meets some errors, please debug it.")
+        #     sys.exit(1)
         
         # datafeature=pickle.load(open(save_file_pkl,'rb'))
 
