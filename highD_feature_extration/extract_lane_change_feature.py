@@ -472,7 +472,7 @@ def get_vehicle_feature(vehicle_id,tracks,instance,static_info,LC_moment,PREFOL_
         assert frame[0]<=LC_moment and LC_moment<=frame[total_frame_len-1]
         
     surrounding_vehicle_feature={}
-    surrounding_vehicle_feature[CLASS]=np.zeros((total_frame_len,),dtype=np.uint8)
+    surrounding_vehicle_feature[CLASS]=np.zeros((total_frame_len,),dtype=np.float32)
     surrounding_vehicle_feature[VEHICLE_WIDTH]=np.zeros((total_frame_len,),dtype=np.float32)
     surrounding_vehicle_feature[VEHICLE_HEIGHT]=np.zeros((total_frame_len,),dtype=np.float32)
     surrounding_vehicle_feature[S_LOCATION]=np.zeros((total_frame_len,),dtype=np.float32)
@@ -1332,7 +1332,7 @@ def get_feature(vehicle_id,tracks,instance,static_info):
         
     surrounding_vehicle_feature={}
     surrounding_vehicle_feature[VEHICLE_ID]=vehicle_id
-    surrounding_vehicle_feature[CLASS]=np.zeros((total_frame_len,),dtype=np.uint8)
+    surrounding_vehicle_feature[CLASS]=np.zeros((total_frame_len,),dtype=np.float32)
     surrounding_vehicle_feature[S_LOCATION]=np.zeros((total_frame_len,),dtype=np.float32)
     surrounding_vehicle_feature[D_LOCATION]=np.zeros((total_frame_len,),dtype=np.float32)
     surrounding_vehicle_feature[S_VELOCITY]=np.zeros((total_frame_len,),dtype=np.float32)
@@ -1392,8 +1392,10 @@ def extraction_trajectory_prediction_feature(tracks,static_info,meta_dict)->dict
         frame=instance[FRAME]
         total_frame_len=len(frame)
         
-        ego=get_feature(np.zeros((total_frame_len,),dtype=np.uint8)+idx+1,tracks,instance,static_info)
-        pre=get_feature(instance[PRECEDING_ID],tracks,instance,static_info)
+        ego=get_feature(np.zeros((total_frame_len,),dtype=np.int32)+idx+1,tracks,instance,static_info)
+        assert ego[VEHICLE_ID][0]!=0
+        assert ego[VEHICLE_ID][-1]!=0
+        pre=get_feature(instance[PRECEDING_ID], tracks, instance, static_info)
         fol=get_feature(instance[FOLLOWING_ID], tracks, instance, static_info)
         lftpre=get_feature(instance[LEFT_PRECEDING_ID], tracks, instance, static_info)
         lftalo=get_feature(instance[LEFT_ALONGSIDE_ID], tracks, instance, static_info)
@@ -1401,15 +1403,16 @@ def extraction_trajectory_prediction_feature(tracks,static_info,meta_dict)->dict
         rgtpre=get_feature(instance[RIGHT_PRECEDING_ID], tracks, instance, static_info)
         rgtalo=get_feature(instance[RIGHT_ALONGSIDE_ID], tracks, instance, static_info)
         rgtfol=get_feature(instance[RIGHT_FOLLOWING_ID], tracks, instance, static_info)        
-        lat=np.zeros((total_frame_len,),dtype=np.uint8)
+        lat=np.zeros((total_frame_len,),dtype=np.int32)
         if static_info[idx+1][NUMBER_LANE_CHANGES] == 1:
             try:
                 return_trajectory=extraction_in(tracks,static_info,meta_dict,idx+1)
             except:
-                print("error1")
+                print("error in return_trajectory=extraction_in")
                 continue
             
             if len(return_trajectory)<=0:
+                print("error in if len(return_trajectory)<=0: 1")
                 continue
             LC_action_start_local_frame=return_trajectory[idx+1][LC_ACTION_START_LOCAL_FRAME]
             LC_action_end_local_frame=return_trajectory[idx+1][LC_ACTION_END_LOCAL_FRAME]
@@ -1427,13 +1430,13 @@ def extraction_trajectory_prediction_feature(tracks,static_info,meta_dict)->dict
         elif static_info[idx+1][NUMBER_LANE_CHANGES] >= 3:
             continue
 
-        lon=np.zeros((total_frame_len,),dtype=np.uint8)
+        lon=np.zeros((total_frame_len,),dtype=np.int32)
         for i in range(total_frame_len):
-            if ego[S_ACCELERATION][i]>=0.5:
+            if ego[S_ACCELERATION][i]>=1.0:
                 lo=max(i-25,0)
                 hi=min(total_frame_len,i+25)
                 lon[lo:hi]=1
-            elif ego[S_ACCELERATION][i]<=-0.5:
+            elif ego[S_ACCELERATION][i]<=-1.0:
                 lo=max(i-25,0)
                 hi=min(total_frame_len,i+25)
                 lon[lo:hi]=2
@@ -1448,14 +1451,14 @@ def extraction_trajectory_prediction_feature(tracks,static_info,meta_dict)->dict
         for i in range(total_frame_len):
             if lo==0 and rtn[i,2]>=50 and rtn[i,-1]%5==0:
                 lo=i
-            if hi==total_frame_len and rtn[i,2]>=300 and rtn[i,-1]%5==0:
+            if hi==total_frame_len and rtn[i,2]>=400 and rtn[i,-1]%5==0:
                 hi=i
         hi+=1
         mask=np.zeros((total_frame_len,),dtype=bool)
         for i in range(total_frame_len):
             if i>=lo and i<=hi and rtn[i,-1]%5==0:
                 mask[i]=True
-        rtn=rtn[mask,:].astype(np.float32)
+        rtn=rtn[mask,:]
         if return_final is None:
             return_final=rtn
         else:

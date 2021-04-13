@@ -59,7 +59,7 @@ if __name__ == '__main__':
     
     Absolute_Path="/home/wqq/dataset/HighD"
     
-    for i in range(43,58): 
+    for i in range(1,58): 
         print("File {} in processing.".format(i))
         if 0<i and i<10:
             File_Id="0{}".format(i)
