@@ -12,10 +12,12 @@ This code
     3. saves smoothed dataset to three separate csv files
 """
 
+import imp
 from scipy import signal
 import pandas as pd
 import numpy as np
 import numexpr
+import os
 
 
 def get_file_name(index, file_name):
@@ -25,6 +27,7 @@ def get_file_name(index, file_name):
         return file_name[1].split('.', 1)[0]
     else:
         return file_name[2].split('.', 1)[0]
+
 
 def get_smoothed_x_y_vel_accel(dataset, window):
     """
@@ -48,6 +51,7 @@ def get_smoothed_x_y_vel_accel(dataset, window):
                                                           time_values, initial_vel, initial_accel)
     return smoothed_x_values, smoothed_y_values, smoothed_vel, smoothed_accel
 
+
 def get_smoothed_x_y(dataset, window):
     """
     this function computes the smoothed local x and local y using savgol_filter for a given numpy dataset
@@ -64,6 +68,7 @@ def get_smoothed_x_y(dataset, window):
 
     return smoothed_x_values, smoothed_y_values
 
+
 def get_smoothed_vel_accel(smoothed_x_values, smoothed_y_values, time_values, initial_vel, initial_accel):
     """
     This function recomputes the velocity and acceleration for a given array of smoothed x, y values, time value
@@ -79,10 +84,10 @@ def get_smoothed_vel_accel(smoothed_x_values, smoothed_y_values, time_values, in
     :param initial_vel: a single number containing the initial velocity
     :param initial_accel: a single number containing the initial acceleration
     """
-    #create matrix of A containing current x and y and matrix B containing next x and y values
+    # create matrix of A containing current x and y and matrix B containing next x and y values
     x_y_matrix_A = np.column_stack((smoothed_x_values, smoothed_y_values))
-    x_y_matrix_B = x_y_matrix_A [1:, :]
-    #remove last row as it has no next values
+    x_y_matrix_B = x_y_matrix_A[1:, :]
+    # remove last row as it has no next values
     x_y_matrix_A = x_y_matrix_A[0:-1, :]
 
     # compute distance travelled between current and next x, y values
@@ -91,7 +96,7 @@ def get_smoothed_vel_accel(smoothed_x_values, smoothed_y_values, time_values, in
 
     # create matrix A containing current time values, and matrix B containing next time values
     t_matrix_A = time_values
-    t_matrix_B = t_matrix_A [1:]
+    t_matrix_B = t_matrix_A[1:]
     # remove last row
     t_matrix_A = t_matrix_A[0:-1]
 
@@ -101,15 +106,17 @@ def get_smoothed_vel_accel(smoothed_x_values, smoothed_y_values, time_values, in
 
     # create matrix A containing current velocities and matrix B containing next velocities
     vel_matrix_A = smoothed_velocities
-    vel_matrix_B = vel_matrix_A [1:]
+    vel_matrix_B = vel_matrix_A[1:]
     # remove last row
     vel_matrix_A = vel_matrix_A[0:-1]
 
     # compute smoothed acceleration by dividing the delta velocity over delta time
-    acc = numexpr.evaluate('(vel_matrix_B - vel_matrix_A) * 1000/ (t_matrix_B - t_matrix_A)')
+    acc = numexpr.evaluate(
+        '(vel_matrix_B - vel_matrix_A) * 1000/ (t_matrix_B - t_matrix_A)')
     smoothed_accelaration = np.insert(acc, 0, initial_accel, axis=0)
 
     return np.array(smoothed_velocities), np.array(smoothed_accelaration)
+
 
 def smooth_dataset(window, train, file_names):
     """
@@ -121,23 +128,25 @@ def smooth_dataset(window, train, file_names):
     :param train: a list of 3 numpy arrays containing the original ngsim data
     """
     # find  unique vehicle ids in all the datasets, in the previous version
-    vehicle_ids = [train[0]['Vehicle_ID'].unique(), train[1]['Vehicle_ID'].unique(), train[2]['Vehicle_ID'].unique()]
+    vehicle_ids = [train[0]['Vehicle_ID'].unique(
+    ), train[1]['Vehicle_ID'].unique(), train[2]['Vehicle_ID'].unique()]
 
     # convert to numpy arrays to fascilitate matrix operations to compute velocity and acceleration
-    numpy_trains = [train[0].to_numpy(), train[1].to_numpy(), train[2].to_numpy()]
+    numpy_trains = [train[0].to_numpy(), train[1].to_numpy(),
+                    train[2].to_numpy()]
 
-    for i in range(3): #in each dataset
+    for i in range(3):  # in each dataset
         numpy_train = numpy_trains[i]
         print(f"##### smoothing x, y, vel, accl values in train data {str(i)}")
 
         # for each unique vehicle id smooth x and y, recompute vel and acel
         for vehicle in vehicle_ids[i]:
             # create a filter for given vehicle id and use it to create a numpy array containing info only for that vehicle
-            filter = numpy_train[:,0] == vehicle
-            numpy_vehicle_dataset = numpy_train[filter,:]
+            filter = numpy_train[:, 0] == vehicle
+            numpy_vehicle_dataset = numpy_train[filter, :]
 
-            smoothed_x_values, smoothed_y_values, smoothed_vel,smoothed_accel = \
-                 get_smoothed_x_y_vel_accel(numpy_vehicle_dataset, window)
+            smoothed_x_values, smoothed_y_values, smoothed_vel, smoothed_accel = \
+                get_smoothed_x_y_vel_accel(numpy_vehicle_dataset, window)
 
             # replace values of x, y, vel, accel, with new smoothed values
             numpy_train[filter, local_x] = [x for x in smoothed_x_values]
@@ -147,9 +156,11 @@ def smooth_dataset(window, train, file_names):
 
         # print to file
         file_name = get_file_name(i, file_names)
-        file_path = path_to_smoothed_dataset + file_name + '_smoothed_' + str(window) + '.csv'
+        file_path = path_to_smoothed_dataset + \
+            file_name + '_smoothed_' + str(window) + '.csv'
         with open(file_path, 'w') as f:
             np.savetxt(file_path, numpy_trains[i], delimiter=",")
+
 
 def main():
     # smooth window must be an odd value
@@ -158,18 +169,22 @@ def main():
 
     # change the file names as needed
     global file_names
-    file_names = ['trajectories-0400-0415.csv', 'trajectories-0500-0515.csv', 'trajectories-0515-0530.csv']
+    file_names = ['trajectories-0400-0415.csv',
+                  'trajectories-0500-0515.csv', 'trajectories-0515-0530.csv']
 
     # define the index of columns containing vehicle id, time, local x, local y, velocity and acceleration
     # these indexes correspond to the original dataset if not modified
     # the indexes help treat the dataset as matrix and perform smoothing using matrix functions
     global vehicle_id, time_column, local_x, local_y, v_vel, v_acc
-    vehicle_id, time_column, local_x, local_y, v_vel, v_acc  = 0, 3, 4, 5, 11, 12
+    vehicle_id, time_column, local_x, local_y, v_vel, v_acc = 0, 3, 4, 5, 11, 12
 
     # specify the path to the input NGSIM dataset and the path to the output smoothed dataset
     global path_to_dataset, path_to_smoothed_dataset
-    path_to_dataset = '/home/demian/code/dataset/NGSIM/i80/'
-    path_to_smoothed_dataset = '/home/demian/code/dataset/NGSIM/smoothed/'
+
+    # Please modify the path!!!!
+    path = os.path.dirname(os.path.abspath(__file__))
+    path_to_dataset = path+'/NGSIM/i80/'
+    path_to_smoothed_dataset = path + '/NGSIM/smoothed/'
 
     # load the NGSIM data from the CSV files
     train1 = pd.read_csv(path_to_dataset + file_names[0], engine='c')
@@ -179,6 +194,7 @@ def main():
     train = [train1, train2, train3]
 
     smooth_dataset(smoothing_window, train, file_names)
+
 
 if __name__ == '__main__':
     main()

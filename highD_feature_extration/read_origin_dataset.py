@@ -63,7 +63,7 @@ UPPER_LANE_MARKINGS = "upperLaneMarkings"
 LOWER_LANE_MARKINGS = "lowerLaneMarkings"
 
 
-def read_track_csv(arguments):
+def read_track_csv(track_path):
     """
     This method reads the tracks file from highD data.
 
@@ -71,7 +71,7 @@ def read_track_csv(arguments):
     :return: a list containing all tracks as dictionaries.
     """
     # Read the csv file, convert it into a useful data structure
-    df = pandas.read_csv(arguments["input_path"])
+    df = pandas.read_csv(track_path)
 
     # Use groupby to aggregate track info. Less error prone than iterating over the data.
     grouped = df.groupby([TRACK_ID], sort=False)
@@ -110,7 +110,7 @@ def read_track_csv(arguments):
     return tracks
 
 
-def read_static_info(arguments):
+def read_static_info(static_path):
     """
     This method reads the static info file from highD data.
 
@@ -118,7 +118,7 @@ def read_static_info(arguments):
     :return: the static dictionary - the key is the track_id and the value is the corresponding data for this track
     """
     # Read the csv file, convert it into a useful data structure
-    df = pandas.read_csv(arguments["input_static_path"])
+    df = pandas.read_csv(static_path)
 
     # Declare and initialize the static_dictionary
     static_dictionary = {}
@@ -141,12 +141,13 @@ def read_static_info(arguments):
                                        MIN_TTC: float(df[MIN_TTC][i_row]),
                                        MIN_THW: float(df[MIN_THW][i_row]),
                                        MIN_DHW: float(df[MIN_DHW][i_row]),
-                                       NUMBER_LANE_CHANGES: int(df[NUMBER_LANE_CHANGES][i_row])
+                                       NUMBER_LANE_CHANGES: int(
+                                           df[NUMBER_LANE_CHANGES][i_row])
                                        }
     return static_dictionary
 
 
-def read_meta_info(arguments):
+def read_meta_info(meta_path):
     """
     This method reads the video meta file from highD data.
 
@@ -154,7 +155,7 @@ def read_meta_info(arguments):
     :return: the meta dictionary containing the general information of the video
     """
     # Read the csv file, convert it into a useful data structure
-    df = pandas.read_csv(arguments["input_meta_path"])
+    df = pandas.read_csv(meta_path)
 
     # Declare and initialize the extracted_meta_dictionary
     extracted_meta_dictionary = {ID: int(df[ID][0]),

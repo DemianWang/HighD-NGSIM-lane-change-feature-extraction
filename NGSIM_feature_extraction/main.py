@@ -3,7 +3,7 @@
 """
 Created on Thu Jan 14 09:48:52 2021
 
-@author: demian Wang ## MIS: wangqi123
+@author: demian Wang 
 """
 
 import os
@@ -13,7 +13,7 @@ import pandas
 import numpy as np
 from scipy import signal
 import matplotlib.pyplot as plt
-from extract_lane_change_feature import extraction_in,generate_csv_file,generate_pickle_file,extraction_BL_in
+from extract_lane_change_feature import extraction_in, generate_csv_file, generate_pickle_file, extraction_BL_in
 
 # TRACK FILE
 BBOX = "bbox"
@@ -76,11 +76,12 @@ N_TRUCKS = "numTrucks"
 UPPER_LANE_MARKINGS = "upperLaneMarkings"
 LOWER_LANE_MARKINGS = "lowerLaneMarkings"
 
-#NGSIM
-v_Vel="v_Vel"
-v_Acc="v_Acc"
+# NGSIM
+v_Vel = "v_Vel"
+v_Acc = "v_Acc"
 
-def read_track_csv(file_name,save_file):
+
+def read_track_csv(file_name, save_file):
     """
     This method reads the tracks file from highD data.
 
@@ -100,46 +101,52 @@ def read_track_csv(file_name,save_file):
                                                 rows[Y].values,
                                                 rows[WIDTH].values,
                                                 rows[HEIGHT].values]))
-        #get X_vel,Y_vel,X_acc,Y_acc  #final tracks is [2:end]
-        X_vel=np.zeros((bounding_boxes.shape[0],),dtype=np.float32)
-        Y_vel=np.zeros((bounding_boxes.shape[0],),dtype=np.float32)
-        for idx in range(1,bounding_boxes.shape[0]):
+        # get X_vel,Y_vel,X_acc,Y_acc  #final tracks is [2:end]
+        X_vel = np.zeros((bounding_boxes.shape[0],), dtype=np.float32)
+        Y_vel = np.zeros((bounding_boxes.shape[0],), dtype=np.float32)
+        for idx in range(1, bounding_boxes.shape[0]):
             # if idx == 231:
             #     aa=1
-            X_vel[idx]=(bounding_boxes[idx,0]-bounding_boxes[idx-1,0])*10
-            Y_vel[idx]=(bounding_boxes[idx,1]-bounding_boxes[idx-1,1])*10
-            flag=-1 if Y_vel[idx]<0 else 1
-            
-            if np.abs(rows[v_Vel].values[idx])<np.abs(X_vel[idx]):
-                Y_vel[idx]=Y_vel[idx]/2
+            X_vel[idx] = (bounding_boxes[idx, 0]-bounding_boxes[idx-1, 0])*10
+            Y_vel[idx] = (bounding_boxes[idx, 1]-bounding_boxes[idx-1, 1])*10
+            flag = -1 if Y_vel[idx] < 0 else 1
 
-            Y_vel[idx]=(np.sqrt(np.abs(rows[v_Vel].values[idx]*rows[v_Vel].values[idx]-X_vel[idx]*X_vel[idx]))*flag+Y_vel[idx])/2
-            
-            flag=-1 if X_vel[idx]<0 else 1
-            X_vel[idx]=(np.sqrt(np.abs(rows[v_Vel].values[idx]*rows[v_Vel].values[idx]-Y_vel[idx]*Y_vel[idx]))*flag+X_vel[idx])/2
+            if np.abs(rows[v_Vel].values[idx]) < np.abs(X_vel[idx]):
+                Y_vel[idx] = Y_vel[idx]/2
 
-        X_vel=signal.savgol_filter(X_vel[2:], 21, 2)
-        Y_vel=signal.savgol_filter(Y_vel[2:], 21, 2)
-        
-        X_Acc=np.zeros((bounding_boxes.shape[0],),dtype=np.float32)
-        Y_Acc=np.zeros((bounding_boxes.shape[0],),dtype=np.float32)
-        for idx in range(2,bounding_boxes.shape[0]):           
-            X_Acc[idx]=(bounding_boxes[idx,0]+bounding_boxes[idx-2,0]-2*bounding_boxes[idx-1,0])*100
-            Y_Acc[idx]=(bounding_boxes[idx,1]+bounding_boxes[idx-2,1]-2*bounding_boxes[idx-1,1])*100
-            flag=-1 if Y_Acc[idx]<0 else 1
-            if np.abs(rows[v_Acc].values[idx])<np.abs(X_Acc[idx]):
-                Y_Acc[idx]=Y_Acc[idx]/2
-            Y_Acc[idx]=(np.sqrt(np.abs(rows[v_Acc].values[idx]*rows[v_Acc].values[idx]-X_Acc[idx]*X_Acc[idx]))*flag+Y_Acc[idx])/2
+            Y_vel[idx] = (np.sqrt(np.abs(rows[v_Vel].values[idx] *
+                          rows[v_Vel].values[idx]-X_vel[idx]*X_vel[idx]))*flag+Y_vel[idx])/2
 
-            flag=-1 if X_Acc[idx]<0 else 1
-            X_Acc[idx]=(np.sqrt(np.abs(rows[v_Acc].values[idx]*rows[v_Acc].values[idx]-Y_Acc[idx]*Y_Acc[idx]))*flag+X_Acc[idx])/2
- 
-        X_Acc=signal.savgol_filter(X_Acc[2:], 21, 2)
-        Y_Acc=signal.savgol_filter(Y_Acc[2:], 21, 2)            
-            
+            flag = -1 if X_vel[idx] < 0 else 1
+            X_vel[idx] = (np.sqrt(np.abs(rows[v_Vel].values[idx] *
+                          rows[v_Vel].values[idx]-Y_vel[idx]*Y_vel[idx]))*flag+X_vel[idx])/2
+
+        X_vel = signal.savgol_filter(X_vel[2:], 21, 2)
+        Y_vel = signal.savgol_filter(Y_vel[2:], 21, 2)
+
+        X_Acc = np.zeros((bounding_boxes.shape[0],), dtype=np.float32)
+        Y_Acc = np.zeros((bounding_boxes.shape[0],), dtype=np.float32)
+        for idx in range(2, bounding_boxes.shape[0]):
+            X_Acc[idx] = (bounding_boxes[idx, 0] +
+                          bounding_boxes[idx-2, 0]-2*bounding_boxes[idx-1, 0])*100
+            Y_Acc[idx] = (bounding_boxes[idx, 1] +
+                          bounding_boxes[idx-2, 1]-2*bounding_boxes[idx-1, 1])*100
+            flag = -1 if Y_Acc[idx] < 0 else 1
+            if np.abs(rows[v_Acc].values[idx]) < np.abs(X_Acc[idx]):
+                Y_Acc[idx] = Y_Acc[idx]/2
+            Y_Acc[idx] = (np.sqrt(np.abs(rows[v_Acc].values[idx] *
+                          rows[v_Acc].values[idx]-X_Acc[idx]*X_Acc[idx]))*flag+Y_Acc[idx])/2
+
+            flag = -1 if X_Acc[idx] < 0 else 1
+            X_Acc[idx] = (np.sqrt(np.abs(rows[v_Acc].values[idx] *
+                          rows[v_Acc].values[idx]-Y_Acc[idx]*Y_Acc[idx]))*flag+X_Acc[idx])/2
+
+        X_Acc = signal.savgol_filter(X_Acc[2:], 21, 2)
+        Y_Acc = signal.savgol_filter(Y_Acc[2:], 21, 2)
+
         tracks[current_track] = {TRACK_ID: np.int64(group_id),  # for compatibility, int would be more space efficient
                                  FRAME: rows[FRAME].values[2:],
-                                 BBOX: bounding_boxes[2:,:],
+                                 BBOX: bounding_boxes[2:, :],
                                  X_VELOCITY: X_vel,
                                  Y_VELOCITY: Y_vel,
                                  X_ACCELERATION: X_Acc,
@@ -162,14 +169,15 @@ def read_track_csv(file_name,save_file):
                                  LANE_ID: rows[LANE_ID].values[2:]
                                  }
         current_track = current_track + 1
-        
-    print("Save tracks to pickle file.")    
+
+    print("Save tracks to pickle file.")
     with open(save_file, "wb") as fp:
         pickle.dump(tracks, fp)
-            
+
     return tracks
 
-def read_static_info(file_name,save_file,tracks):
+
+def read_static_info(file_name, save_file, tracks):
     """
     This method reads the static info file from highD data.
 
@@ -185,16 +193,16 @@ def read_static_info(file_name,save_file,tracks):
     # Iterate over all rows of the csv because we need to create the bounding boxes for each row
     for i_row in range(df.shape[0]):
         track_id = int(df[TRACK_ID][i_row])
-        
+
         instance = tracks[i_row]
         init_lane = instance[LANE_ID][0]
-        count=0
-        for i in range(1,len(instance[LANE_ID])):
-            if instance[LANE_ID][i]!=init_lane:
-                count+=1
-                init_lane=instance[LANE_ID][i]
+        count = 0
+        for i in range(1, len(instance[LANE_ID])):
+            if instance[LANE_ID][i] != init_lane:
+                count += 1
+                init_lane = instance[LANE_ID][i]
         # lane_change[count]+=1
-        
+
         static_dictionary[track_id] = {TRACK_ID: track_id,
                                        # WIDTH: int(df[WIDTH][i_row]),
                                        # HEIGHT: int(df[HEIGHT][i_row]),
@@ -202,7 +210,7 @@ def read_static_info(file_name,save_file,tracks):
                                        FINAL_FRAME: int(df[FINAL_FRAME][i_row]),
                                        NUM_FRAMES: int(df[NUM_FRAMES][i_row]),
                                        # CLASS: str(df[CLASS][i_row]),
-                                        # DRIVING_DIRECTION: float(df[DRIVING_DIRECTION][i_row]),
+                                       # DRIVING_DIRECTION: float(df[DRIVING_DIRECTION][i_row]),
                                        # TRAVELED_DISTANCE: float(df[TRAVELED_DISTANCE][i_row]),
                                        # MIN_X_VELOCITY: float(df[MIN_X_VELOCITY][i_row]),
                                        # MAX_X_VELOCITY: float(df[MAX_X_VELOCITY][i_row]),
@@ -212,10 +220,11 @@ def read_static_info(file_name,save_file,tracks):
                                        # MIN_DHW: float(df[MIN_DHW][i_row]),
                                        NUMBER_LANE_CHANGES: int(count)
                                        }
-    print("Save tracks to pickle file.")    
+    print("Save tracks to pickle file.")
     with open(save_file, "wb") as fp:
         pickle.dump(static_dictionary, fp)
     return static_dictionary
+
 
 def read_meta_info(file_name):
     """
@@ -245,32 +254,36 @@ def read_meta_info(file_name):
                                  LOWER_LANE_MARKINGS: np.fromstring(df[LOWER_LANE_MARKINGS][0], sep=";")}
     return extracted_meta_dictionary
 
+
 if __name__ == '__main__':
-    
-    Absolute_Path="/home/demian/code/dataset/NGSIM/smoothed_NGSIM_highDstructure/"
-    
+    # Please modify the path!!!!
+    path = os.path.dirname(os.path.abspath(__file__))
+    Absolute_Path = path+"/NGSIM/smoothed_NGSIM_highDstructure/"
+
     # file_name=["trajectories-0400-0415_smoothed_21","trajectories-0500-0515_smoothed_21","trajectories-0515-0530_smoothed_21"]
-    file_name=["trajectories-0750am-0805am","trajectories-0805am-0820am","trajectories-0820am-0835am",
-               "trajectories-0400-0415_smoothed_21","trajectories-0500-0515_smoothed_21","trajectories-0515-0530_smoothed_21"]
-    class_name=["track_","meta_","static_"]
-    
-    
-    for i in range(6): 
+    file_name = ["trajectories-0750am-0805am", "trajectories-0805am-0820am", "trajectories-0820am-0835am",
+                 "trajectories-0400-0415_smoothed_21", "trajectories-0500-0515_smoothed_21", "trajectories-0515-0530_smoothed_21"]
+    class_name = ["track_", "meta_", "static_"]
+
+    for i in range(6):
         print("File {} in processing.".format(i))
 
         # save_file=Absolute_Path+"/save_file/{}_vehcile_features_{}.csv".format(LC_BL,File_Id)
         # save_file_pkl=Absolute_Path+"save_file/LC_vehcile_features_{}.pkl".format(i+3)
-        save_file_pkl=Absolute_Path+"save_file/LC_vehcile_features_{}.pkl".format(i)
+        save_file_pkl = Absolute_Path + \
+            "save_file/LC_vehcile_features_{}.pkl".format(i)
         # Read the tracks
         if os.path.exists(Absolute_Path+class_name[0]+file_name[i]+".pkl"):
             with open(Absolute_Path+class_name[0]+file_name[i]+".pkl", "rb") as fp:
                 tracks = pickle.load(fp)
         else:
             try:
-                tracks = read_track_csv(Absolute_Path+class_name[0]+file_name[i]+".csv",Absolute_Path+class_name[0]+file_name[i]+".pkl")
+                tracks = read_track_csv(
+                    Absolute_Path+class_name[0]+file_name[i]+".csv", Absolute_Path+class_name[0]+file_name[i]+".pkl")
             except:
-                print("The static info file is either missing or contains incorrect characters.")
-                sys.exit(1) 
+                print(
+                    "The static info file is either missing or contains incorrect characters.")
+                sys.exit(1)
 
         # Read the static info
         if os.path.exists(Absolute_Path+class_name[2]+file_name[i]+".pkl"):
@@ -278,33 +291,32 @@ if __name__ == '__main__':
                 static_info = pickle.load(fp)
         else:
             try:
-                static_info = read_static_info(Absolute_Path+class_name[2]+file_name[i]+".csv",Absolute_Path+class_name[2]+file_name[i]+".pkl",tracks)
+                static_info = read_static_info(
+                    Absolute_Path+class_name[2]+file_name[i]+".csv", Absolute_Path+class_name[2]+file_name[i]+".pkl", tracks)
             except:
-                print("The static info file is either missing or contains incorrect characters.")
+                print(
+                    "The static info file is either missing or contains incorrect characters.")
                 sys.exit(1)
-            
+
         # # Read the video meta
         try:
-            meta_dictionary = read_meta_info(Absolute_Path+class_name[1]+file_name[i]+".csv")
+            meta_dictionary = read_meta_info(
+                Absolute_Path+class_name[1]+file_name[i]+".csv")
         except:
-            print("The video meta file is either missing or contains incorrect characters.")
+            print(
+                "The video meta file is either missing or contains incorrect characters.")
             sys.exit(1)
-            
-        # # Extract the change lane feature    
+
+        # # Extract the change lane feature
         try:
-            features_LC=extraction_in(tracks, static_info, meta_dictionary)      
-            generate_pickle_file(features_LC,save_file_pkl) #if created_arguments["csv_or_pkl"] else generate_csv_file(features_LC,save_file)## generate csv file
+            features_LC = extraction_in(tracks, static_info, meta_dictionary)
+            # if created_arguments["csv_or_pkl"] else generate_csv_file(features_LC,save_file)## generate csv file
+            generate_pickle_file(features_LC, save_file_pkl)
             # else:
             #     features_BL=extraction_BL_in(tracks, static_info, meta_dictionary)
             #     generate_pickle_file(features_BL,save_file_pkl) if created_arguments["csv_or_pkl"] else generate_csv_file(features_BL,save_file)## generate csv file
         except:
             print("The feature extraction process meets some errors, please debug it.")
             sys.exit(1)
-        
+
         # datafeature=pickle.load(open(save_file_pkl,'rb'))
-
-
-
-
-
-

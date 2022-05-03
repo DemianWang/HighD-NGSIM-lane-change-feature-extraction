@@ -1,0 +1,5 @@
+*.pyc
+highD_feature_extration/__pycache__/*
+*.pkl
+NGSIM_feature_extration/__pycache__/*
+NGSIM_feature_extration/*.pkl
